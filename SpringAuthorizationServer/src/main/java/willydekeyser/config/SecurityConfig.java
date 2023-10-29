@@ -108,7 +108,7 @@ public class SecurityConfig {
 				.scope(OidcScopes.PROFILE)
 				.clientSettings(ClientSettings.builder()
 						.requireAuthorizationConsent(false)
-						.requireProofKey(false)
+						.requireProofKey(true)
 						.build())
 				.build();
 
