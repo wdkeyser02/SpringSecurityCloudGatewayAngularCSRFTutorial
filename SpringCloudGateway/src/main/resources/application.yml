@@ -6,14 +6,14 @@ spring:
   cloud:
     gateway:
       default-filters:
-        - TokenRelay=
+        - CustomTokenRelay=
       routes:
         - id: route1
           uri: http://localhost:8091/
           predicates:
-            - Path=/resource1/**
+            - Path=/resource1/{segment}
           filters:
-            - SetPath=/resourceserver01/  
+            - SetPath=/resourceserver01/{segment}
         - id: angular
           uri: http://localhost:4200/
           predicates:
