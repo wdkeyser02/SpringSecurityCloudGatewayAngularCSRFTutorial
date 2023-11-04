@@ -128,7 +128,8 @@ public class CustomTokenRelayGatewayFilterFactory extends TokenRelayGatewayFilte
                     return new OAuth2AuthorizedClient(authorizedClient.getClientRegistration(), 
                     		authorizedClient.getPrincipalName(), 
                     		accessTokenResponse.getAccessToken(), 
-                    		authorizedClient.getRefreshToken()); //refreshToken);
+                    		//authorizedClient.getRefreshToken()); 
+                    		refreshToken);
                 })
                 .flatMap(result -> this.authorizedClientRepository.saveAuthorizedClient(result, oauth2Authentication, exchange).thenReturn(result));
     }
