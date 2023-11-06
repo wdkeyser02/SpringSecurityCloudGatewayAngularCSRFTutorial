@@ -33,7 +33,8 @@ public class SecurityConfig {
 	
 	@Bean
     SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http, 
-    		ServerOAuth2AuthorizationRequestResolver resolver) {
+    		ServerOAuth2AuthorizationRequestResolver resolver,
+    		ReactiveClientRegistrationRepository clientRegistrationRepository) {
 		CookieServerCsrfTokenRepository tokenRepository = CookieServerCsrfTokenRepository.withHttpOnlyFalse();
 	    tokenRepository.setCookiePath("/");
 	    tokenRepository.setHeaderName("X-XSRF-TOKEN");
@@ -46,7 +47,6 @@ public class SecurityConfig {
                 .logout(logout -> logout
                 		.logoutUrl("/logout")
                 		.logoutSuccessHandler(serverLogoutSuccessHandler(reactiveClientRegistrationRepository)))
-                .cors(withDefaults())
                 .csrf(csrf -> csrf
                 		.csrfTokenRepository(tokenRepository)
             			.csrfTokenRequestHandler(requestHandler)
@@ -65,11 +65,11 @@ public class SecurityConfig {
 			}).then(chain.filter(exchange));
 		};
 	}
-	
+		
 	@Bean
 	ServerLogoutSuccessHandler serverLogoutSuccessHandler(ReactiveClientRegistrationRepository repository) {
 	       OidcClientInitiatedServerLogoutSuccessHandler oidcLogoutSuccessHandler = new OidcClientInitiatedServerLogoutSuccessHandler(repository);
-	       oidcLogoutSuccessHandler.setPostLogoutRedirectUri("{baseUrl}/logged-out");
+	       oidcLogoutSuccessHandler.setPostLogoutRedirectUri("http://127.0.0.1:8090/");
 	       return oidcLogoutSuccessHandler;
 	}
 	
@@ -79,4 +79,5 @@ public class SecurityConfig {
 	    resolver.setAuthorizationRequestCustomizer(OAuth2AuthorizationRequestCustomizers.withPkce());
 	    return resolver;
 	}
+		
 }

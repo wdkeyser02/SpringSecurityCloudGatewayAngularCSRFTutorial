@@ -1,5 +1,8 @@
 package willydekeyser.controller;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -8,15 +11,19 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/resourceserver01")
-public class HomeController {
+public class TestController {
 
-	@GetMapping("/home")
-	public String getHome() {
-		return "Spring Resource Server 01";
+	private List<String> testList = new ArrayList<>();
+	
+ 	@GetMapping("/test")
+	public List<String> getTest() {
+		return testList;
 	}
 	
-	@PostMapping("/home")
-	public String postHome(@RequestBody String id) {
-		return "Spring Resource Server 01 " + id;
+	@PostMapping("/test")
+	public List<String> postTest(@RequestBody String test) {
+		testList.add(test);
+		return testList;
+
 	}
 }
