@@ -6,7 +6,7 @@ spring:
   cloud:
     gateway:
       default-filters:
-        - TokenRelay=
+        - CustomTokenRelay=
       routes:
         - id: route1
           uri: http://localhost:8091/

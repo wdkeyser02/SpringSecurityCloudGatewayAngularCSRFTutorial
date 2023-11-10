@@ -19,12 +19,18 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -34,11 +40,17 @@ import org.springframework.security.oauth2.server.authorization.config.annotatio
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
+import org.springframework.security.oauth2.server.authorization.token.DelegatingOAuth2TokenGenerator;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
+import org.springframework.security.oauth2.server.authorization.token.JwtGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2AccessTokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2RefreshTokenGenerator;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 
 import com.nimbusds.jose.jwk.JWKSet;
@@ -52,13 +64,25 @@ public class SecurityConfig {
 
 	@Bean 
 	@Order(1)
-	SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http)
+	SecurityFilterChain authorizationServerSecurityFilterChain(
+			HttpSecurity http, 
+			RegisteredClientRepository registeredClientRepository,
+			OAuth2AuthorizationService authorizationService, 
+			SessionRegistry sessionRegistry,
+			OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator)
 			throws Exception {
 		OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
 		http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
-			.oidc(withDefaults());
-		http
-			.exceptionHandling((exceptions) -> exceptions
+			.tokenEndpoint(token -> token
+					.authenticationProvider(new MyOAuth2RefreshTokenAuthenticationProvider(
+							authorizationService, 
+							tokenGenerator)))
+			.oidc(oidc -> oidc
+					.logoutEndpoint(logout -> logout
+							.authenticationProvider(new MyOidcLogoutAuthenticationProvider(
+									registeredClientRepository, 
+									authorizationService, sessionRegistry))));
+		http.exceptionHandling((exceptions) -> exceptions
 				.defaultAuthenticationEntryPointFor(
 					new LoginUrlAuthenticationEntryPoint("/login"),
 					new MediaTypeRequestMatcher(MediaType.TEXT_HTML)
@@ -115,8 +139,8 @@ public class SecurityConfig {
 						.requireProofKey(true)
 						.build())
 				.tokenSettings(TokenSettings.builder()
-						.accessTokenTimeToLive(Duration.ofHours(1))
-						.refreshTokenTimeToLive(Duration.ofHours(24))
+						.accessTokenTimeToLive(Duration.ofMinutes(15L))
+						.refreshTokenTimeToLive(Duration.ofDays(30L))
 						.build())
 				.build();
 
@@ -158,6 +182,18 @@ public class SecurityConfig {
 	AuthorizationServerSettings authorizationServerSettings() {
 		return AuthorizationServerSettings.builder().build();
 	}
+	
+	@Bean
+	OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator() {
+		NimbusJwtEncoder jwtEncoder = new NimbusJwtEncoder(jwkSource());
+		JwtGenerator jwtGenerator = new JwtGenerator(jwtEncoder);
+		jwtGenerator.setJwtCustomizer(tokenCustomizer());
+		OAuth2AccessTokenGenerator accessTokenGenerator = new OAuth2AccessTokenGenerator();
+		OAuth2RefreshTokenGenerator refreshTokenGenerator = new OAuth2RefreshTokenGenerator();
+		return new DelegatingOAuth2TokenGenerator(
+				jwtGenerator, accessTokenGenerator, refreshTokenGenerator);
+	}
+	
 	@Bean
 	OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
 		return context -> {
@@ -175,5 +211,20 @@ public class SecurityConfig {
 				context.getClaims().claim("details", "Spring Boot Tutorial");
 			}
 		};
+	}
+	
+	@Bean
+	SessionRegistry sessionRegistry() {
+		return new SessionRegistryImpl();
+	}
+
+	@Bean
+	HttpSessionEventPublisher httpSessionEventPublisher() {
+		return new HttpSessionEventPublisher();
+	}
+	
+	@Bean
+	OAuth2AuthorizationService jdbcOAuth2AuthorizationService() {
+		return new InMemoryOAuth2AuthorizationService();
 	}
 }
