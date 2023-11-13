@@ -224,7 +224,7 @@ public class SecurityConfig {
 	}
 	
 	@Bean
-	OAuth2AuthorizationService jdbcOAuth2AuthorizationService() {
+	OAuth2AuthorizationService oAuth2AuthorizationService() {
 		return new InMemoryOAuth2AuthorizationService();
 	}
 }
